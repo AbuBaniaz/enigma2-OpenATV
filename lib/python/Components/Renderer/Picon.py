@@ -4,7 +4,7 @@ import os
 import re
 import unicodedata
 from Components.Renderer.Renderer import Renderer
-from enigma import ePixmap, ePicLoad
+from enigma import ePixmap, ePicLoad, eServiceCenter, eServiceReference
 from Tools.Alternatives import GetWithAlternative
 from Tools.Directories import pathExists, SCOPE_SKIN_IMAGE, SCOPE_ACTIVE_SKIN, resolveFilename
 from Components.Harddisk import harddiskmanager
@@ -105,17 +105,34 @@ def getPiconName(serviceName):
 		#fallback to 1 for services with different service types
 		fields[2] = '1'
 		pngname = findPicon('_'.join(fields))
-	if not pngname: # picon by channel name
+	if not pngname: # picon by channel name (SNP & SNP->SRP)
 		name = ServiceReference(serviceName).getServiceName()
 		if sys.version_info[0] >= 3:
 			name = six.ensure_str(unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore'))
 		else:
 			name = unicodedata.normalize('NFKD', unicode(name, 'utf_8', errors='ignore')).encode('ASCII', 'ignore')
-		name = re.sub('[^a-z0-9]', '', name.replace('&', 'and').replace('+', 'plus').replace('*', 'star').lower())
-		if len(name) > 0:
-			pngname = findPicon(name)
-			if not pngname and len(name) > 2 and name.endswith('hd'):
-				pngname = findPicon(name[:-2])
+		name = name.replace('&', 'and').replace('+', 'plus').replace('*', 'star')
+		fname = re.sub('[^a-z0-9]', '', name.lower())
+		if len(fname) > 0: # fast method for SD (SNP)
+			pngname = findPicon(fname)
+			if not pngname and len(fname) > 2 and fname.endswith('hd'): # fast method for fallback HD->SD
+				pngname = findPicon(fname[:-2])
+			if not pngname: # exhaustive method for fallback HD->SD (SRP)
+				serviceHandler = eServiceCenter.getInstance()
+				services = serviceHandler.list(eServiceReference('1:7:1:0:0:0:0:0:0:0:(name == "' + name.replace('HD', '').rstrip().upper() + '")'))
+				channels = services and services.getContent("SN", True)
+				for channel in channels:
+					pngname = findPicon(channel[0][:-1].replace(':', '_'))
+					if pngname:
+						break
+			if not pngname: # exhaustive method for fallback UHD->HD (SRP)
+				serviceHandler = eServiceCenter.getInstance()
+				services = serviceHandler.list(eServiceReference('1:7:1:0:0:0:0:0:0:0:(name == "' + name.replace('UHD', 'HD').rstrip().upper() + '")'))
+				channels = services and services.getContent("SN", True)
+				for channel in channels:
+					pngname = findPicon(channel[0][:-1].replace(':', '_'))
+					if pngname:
+						break
 	return pngname
 
 
