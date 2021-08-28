@@ -34,9 +34,9 @@ LANG_COUNTRYCODES = 4
 LANG_MAX = 4
 
 # In this code the following meanings are used:
-#	Country: An official country as recognised by ISO, eg "AU" for Australia.
+# 	Country: An official country as recognised by ISO, eg "AU" for Australia.
 # 	Language: An official language as recognised by ISO, eg "en" for English.
-#	Locale: An official language as spoken in a country, eg "en_AU" for English (Australian).
+# 	Locale: An official language as spoken in a country, eg "en_AU" for English (Australian).
 
 LANGUAGE_DATA = {
 	# DEVELOPER NOTE:
@@ -514,10 +514,10 @@ CAT_ENVIRONMENT = 0
 CAT_PYTHON = 1
 
 CATEGORIES = [
-	("LC_ALL", LC_ALL),
+	("LC_ALL", None),
 	("LC_ADDRESS", None),
-	("LC_COLLATE", LC_COLLATE),
-	("LC_CTYPE", LC_CTYPE),
+	("LC_COLLATE", None),
+	("LC_CTYPE", None),
 	("LC_DATE", None),
 	("LC_IDENTIFICATION", None),
 	("LC_MEASUREMENT", None),
@@ -577,7 +577,7 @@ class International:
 			if language not in self.languageList:
 				self.languageList.append(language)
 			count = len(packageLocales)
-			print("[International] Package '%s' has %d locale%s '%s'." % (package, count, "" if count == 1 else "s", "', '".join(packageLocales)))
+			print("[International] Package '%s' supports %d locale%s '%s'." % (package, count, "" if count == 1 else "s", "', '".join(packageLocales)))
 		self.localeList.sort()
 		self.languageList.sort()
 
@@ -600,6 +600,21 @@ class International:
 				print("[International] Error: The language translation data in '%s' for '%s' ('%s') has failed to initialise!" % (languagePath, self.getLanguage(locale), locale))
 				self.catalog = translation("enigma2", "/", fallback=True)
 			self.catalog.install(names=("ngettext", "pgettext"))
+
+			# These should always be C.UTF-8 (or POSIX if C.UTF-8 is unavaible) or program code might behave
+			# differently depending on language setting
+			try:
+				setlocale(LC_CTYPE, ('C', 'UTF-8'))
+			except:
+				pass
+			try:
+				setlocale(LC_COLLATE, ('C', 'UTF-8'))
+			except:
+				try:
+					setlocale(LC_COLLATE, ('POSIX', ''))
+				except:
+					pass
+
 			for category in CATEGORIES:
 				environ[category[CAT_ENVIRONMENT]] = "%s.UTF-8" % locale
 				localeError = None
@@ -810,12 +825,27 @@ class International:
 					print("[International] Warning: Package manager error:\n%s" % errorText)
 					status = _("Error: %s %s not %s!  Please try again later.") % (msg, ", ".join(languages), action)
 				else:
-					status = _("%s %s %s.") % (msg, ", ".join(languages), action)
+					status = "%s %s %s." % (msg, ", ".join(languages), action)
 			except (IOError, OSError) as err:
 				print("[International] Error %d: %s for command '%s'!" % (err.errno, err.strerror, " ".join(cmdList)))
 				status = _("Error: Unable to process the command!  Please try again later.")
 			self.initInternational()
 		return status
 
+	def removeLangs(self, currentLang='', excludeLangs=[]):
+		delLangs = []
+		print("[International] Delete all language packages except current:'%s' and excludes:'%s'" % (currentLang , ''.join(excludeLangs)))
+		installedlanguages = listdir(languagePath)
+		for l in installedlanguages:
+			if l != currentLang and l not in excludeLangs:
+				if len(l) > 2:
+					l = l.lower()
+					l = l.replace('_', '-')
+					delLangs.append(l)
+				else:
+					if l != currentLang[:2]:
+						delLangs.append(l)
+		if delLangs:
+			return international.deleteLanguagePackages(delLangs)
 
 international = International()

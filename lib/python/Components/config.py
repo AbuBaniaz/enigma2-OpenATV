@@ -389,7 +389,7 @@ class ConfigAction(ConfigElement):
 # Several customized versions exist for different descriptions.
 #
 class ConfigBoolean(ConfigElement):
-	def __init__(self, default=False, descriptions={False: _("false"), True: _("true")}, graphic=True):
+	def __init__(self, default=False, descriptions={False: _("False"), True: _("True")}, graphic=True):
 		ConfigElement.__init__(self)
 		self.value = self.last_value = self.default = default
 		self.descriptions = descriptions
@@ -442,17 +442,17 @@ class ConfigBoolean(ConfigElement):
 
 class ConfigEnableDisable(ConfigBoolean):
 	def __init__(self, default=False):
-		ConfigBoolean.__init__(self, default=default, descriptions={False: _("disable"), True: _("enable")})
+		ConfigBoolean.__init__(self, default=default, descriptions={False: _("Disable"), True: _("Enable")})
 
 
 class ConfigOnOff(ConfigBoolean):
 	def __init__(self, default=False):
-		ConfigBoolean.__init__(self, default=default, descriptions={False: _("off"), True: _("on")})
+		ConfigBoolean.__init__(self, default=default, descriptions={False: _("Off"), True: _("On")})
 
 
 class ConfigYesNo(ConfigBoolean):
 	def __init__(self, default=False):
-		ConfigBoolean.__init__(self, default=default, descriptions={False: _("no"), True: _("yes")})
+		ConfigBoolean.__init__(self, default=default, descriptions={False: _("No"), True: _("Yes")})
 
 
 # This is the control, and base class, for date and time settings.
@@ -890,7 +890,7 @@ class ConfigSelectionNumber(ConfigSelection):
 	value = property(getValue, setValue)
 
 	def getIndex(self):
-		return self.choices.index(self.value)
+		return self.choices.index(str(self.value))
 
 	index = property(getIndex)
 
@@ -1425,7 +1425,7 @@ class ConfigSet(ConfigElement):
 					start = pos
 					end = start + length
 				pos += length
-			return ("mtext", "".join(text), range(start, end))
+			return ("mtext", "".join(text), list(range(start, end)))
 		else:
 			return ("text", " ".join([self.description[x] for x in self.value]))
 
@@ -1646,12 +1646,15 @@ class ConfigText(ConfigElement, NumericalTextInput):
 			print("Broken UTF8!")
 			return self.text
 
-	def setValue(self, val):
-		try:
-			self.text = six.ensure_text(val)
-		except UnicodeDecodeError:
-			self.text = six.ensure_text(val, errors='ignore')
-			print("Broken UTF8!")
+	def setValue(self, value):
+		if value is not None:
+			try:
+				self.text = six.ensure_text(value)
+			except UnicodeDecodeError:
+				self.text = six.ensure_text(value, errors='ignore')
+				print("Broken UTF8!")
+		else:
+			self.text = ""
 
 	value = property(getValue, setValue)
 	_value = property(getValue, setValue)
@@ -1704,6 +1707,8 @@ class ConfigDirectory(ConfigText):
 		if value is None:
 			value = ""
 		ConfigText.setValue(self, value)
+
+	value = property(getValue, setValue)
 
 	def onSelect(self, session):
 		self.allmarked = (self.value != "")
